@@ -1,15 +1,23 @@
+import json
 import logging
 import os
 import socket
 import struct
 
+from sentence_transformers import SentenceTransformer
+
 logger = logging.getLogger(__name__)
 
-SOCKET_PATH_ENV_VAR = "EMBEDER_SOCK_PATH"
+SOCKET_PATH_ENV_VAR = "SOCKET_PATH"
+MODEL_NAME = "MODEL_NAME"
 
 MSGTYPE_ECHO = 0
-
 MSGTYPE_EMBED = 1
+
+def _embed(model: SentenceTransformer, payload: str) -> bytes:
+    embedding = model.encode(payload)
+    return json.dumps(embedding.tolist()).encode("utf-8")
+
 
 def _recv_n(sock: socket.socket, n: int) -> bytearray | None:
     data = bytearray()
@@ -33,7 +41,7 @@ def _read_msg(sock: socket.socket) -> tuple[int | None,  bytearray | None]:
     return (int(payload[0]), payload[1:])
 
 
-def _send_msg(sock: socket.socket, msgtype: int, msgbody: bytearray):
+def _send_msg(sock: socket.socket, msgtype: int, msgbody: bytes):
     msglen = len(msgbody) + 1
     msg = struct.pack(">I", msglen) + struct.pack("B", msgtype) + msgbody
     sock.sendall(msg)
@@ -49,8 +57,14 @@ def main() -> None:
     if socket_path is None:
         raise ValueError(f"Missing ${SOCKET_PATH_ENV_VAR} environment variable")
 
-    logger.info("Using socket path: %s", socket_path)
+    model_name = os.environ.get(MODEL_NAME)
+    if model_name is None:
+        raise ValueError(f"Missing ${MODEL_NAME} environment variable")
 
+    logger.info("Downloading model: %s", model_name)
+    model = SentenceTransformer(model_name)
+
+    logger.info("Using socket path: %s", socket_path)
     if os.path.exists(socket_path):
         logger.debug("Removing existing socket file at %s", socket_path)
         os.remove(socket_path)
@@ -71,9 +85,12 @@ def main() -> None:
                 break
             elif msgtype == MSGTYPE_ECHO and msg is not None:
                 logger.info("Echoing message")
-                _send_msg(sock, MSGTYPE_ECHO, msg)
+                _send_msg(sock, MSGTYPE_ECHO, bytes(msg))
             elif msgtype == MSGTYPE_EMBED and msg is not None:
                 logger.info("Generating embedding")
+                decoded_msg = bytes(msg).decode("utf-8")
+                embeded_payload = _embed(model, decoded_msg)
+                _send_msg(sock, MSGTYPE_EMBED, embeded_payload)
             else:
                 if msg is not None:
                     logger.debug("Received invalid msgtyp: %d", msgtype)
@@ -86,3 +103,6 @@ def main() -> None:
         sock.close()
         os.remove(socket_path)
 
+
+if __name__ == "__main__":
+    main()
