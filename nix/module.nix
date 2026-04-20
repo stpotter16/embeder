@@ -20,11 +20,13 @@ in {
     modelCacheDir = lib.mkOption {
       type = lib.types.str;
       default = "/var/lib/embeder/models";
-      description = ''
-        Directory where HuggingFace models are stored. Pre-populate this
-        before setting TRANSFORMERS_OFFLINE, or allow the service to
-        download on first run by removing the environment variable below.
-      '';
+      description = "Directory where HuggingFace models are stored.";
+    };
+
+    offlineMode = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Run in offline mode. Model must be pre-cached in modelCacheDir. Set to false to allow downloading on first run.";
     };
   };
 
@@ -37,6 +39,7 @@ in {
         SOCKET_PATH = cfg.socketPath;
         MODEL_NAME = cfg.modelName;
         HF_HOME = cfg.modelCacheDir;
+      } // lib.optionalAttrs cfg.offlineMode {
         TRANSFORMERS_OFFLINE = "1";
       };
 
