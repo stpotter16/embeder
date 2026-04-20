@@ -2,49 +2,18 @@ import json
 import logging
 import os
 import socket
-import struct
 
 from sentence_transformers import SentenceTransformer
 
+from .config import MODEL_NAME, SOCKET_PATH_ENV_VAR, MSGTYPE_ECHO, MSGTYPE_EMBED
+from .utils import read_msg, send_msg
+
 logger = logging.getLogger(__name__)
 
-SOCKET_PATH_ENV_VAR = "SOCKET_PATH"
-MODEL_NAME = "MODEL_NAME"
-
-MSGTYPE_ECHO = 0
-MSGTYPE_EMBED = 1
 
 def _embed(model: SentenceTransformer, payload: str) -> bytes:
     embedding = model.encode(payload)
     return json.dumps(embedding.tolist()).encode("utf-8")
-
-
-def _recv_n(sock: socket.socket, n: int) -> bytearray | None:
-    data = bytearray()
-    # Read from the socket until we've gotten all the data we want or bail
-    while len(data) < n:
-        packet = sock.recv(n - len(data))
-        if not packet:
-            return None
-        data.extend(packet)
-    return data
-
-
-def _read_msg(sock: socket.socket) -> tuple[int | None,  bytearray | None]:
-    raw_msglen = _recv_n(sock, 4)
-    if raw_msglen is None:
-        return None, None
-    msglen = struct.unpack(">I", raw_msglen)[0]
-    payload = _recv_n(sock, msglen)
-    if payload is None:
-        return None, None
-    return (int(payload[0]), payload[1:])
-
-
-def _send_msg(sock: socket.socket, msgtype: int, msgbody: bytes):
-    msglen = len(msgbody) + 1
-    msg = struct.pack(">I", msglen) + struct.pack("B", msgtype) + msgbody
-    sock.sendall(msg)
 
 
 def main() -> None:
@@ -79,24 +48,25 @@ def main() -> None:
             conn = sock.accept()[0]
             logger.debug("Accepted connection: %s", conn)
 
-            msgtype, msg = _read_msg(conn)
+            msgtype, msg = read_msg(conn)
             if msgtype is None:
                 logger.debug("Could not read message type")
                 break
             elif msgtype == MSGTYPE_ECHO and msg is not None:
                 logger.info("Echoing message")
-                _send_msg(sock, MSGTYPE_ECHO, bytes(msg))
+                send_msg(conn, MSGTYPE_ECHO, bytes(msg))
             elif msgtype == MSGTYPE_EMBED and msg is not None:
                 logger.info("Generating embedding")
                 decoded_msg = bytes(msg).decode("utf-8")
                 embeded_payload = _embed(model, decoded_msg)
-                _send_msg(sock, MSGTYPE_EMBED, embeded_payload)
+                send_msg(conn, MSGTYPE_EMBED, embeded_payload)
             else:
                 if msg is not None:
                     logger.debug("Received invalid msgtyp: %d", msgtype)
                 else:
                     logger.debug("Received empty message")
                 break
+            conn.close()
     except Exception as e:
         logger.info("Unrecoverable exception: %s", e)
     finally:
