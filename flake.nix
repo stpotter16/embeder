@@ -17,7 +17,7 @@
           version = "0.1.0";
           pyproject = true;
 
-          src = ./.;
+          src = pkgs.lib.cleanSource ./.;
 
           build-system = with py.pkgs; [ setuptools ];
 
