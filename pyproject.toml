@@ -5,7 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "embeder"
 version = "0.1.0"
-dependencies = ["sentence-transformers"]
+dependencies = [
+    "sentence-transformers",
+    "fastapi",
+    "uvicorn[standard]",
+]
 
 [tool.setuptools.packages.find]
 include = ["embeder*"]

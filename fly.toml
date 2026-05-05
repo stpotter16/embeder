@@ -1,0 +1,22 @@
+app = "embeder"
+primary_region = "iad"
+
+[env]
+  HF_HOME = "/app/models"
+  MODEL_NAME = "all-MiniLM-L6-v2"
+  TRANSFORMERS_OFFLINE = "1"
+
+[[vm]]
+  memory = "2gb"
+  cpu_kind = "shared"
+  cpus = 2
+
+[checks]
+  [checks.health]
+    grace_period = "60s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    port = 8080
+    timeout = "10s"
+    type = "http"

@@ -1,77 +1,76 @@
-import json
 import logging
 import os
-import socket
+from contextlib import asynccontextmanager
 
+from fastapi import Depends, FastAPI, HTTPException, Security
+from fastapi.security import APIKeyHeader
+from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 
-from .config import MODEL_NAME, SOCKET_PATH_ENV_VAR, MSGTYPE_ECHO, MSGTYPE_EMBED
-from .utils import read_msg, send_msg
+from .config import API_KEY_ENV_VAR, MODEL_NAME_ENV_VAR
 
 logger = logging.getLogger(__name__)
 
+_model: SentenceTransformer | None = None
+_api_key: str = ""
 
-def _embed(model: SentenceTransformer, payload: str) -> bytes:
-    embedding = model.encode(payload)
-    return json.dumps(embedding.tolist()).encode("utf-8")
+api_key_header = APIKeyHeader(name="X-API-Key")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _model, _api_key
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
+
+    model_name = os.environ.get(MODEL_NAME_ENV_VAR)
+    if not model_name:
+        raise ValueError(f"Missing ${MODEL_NAME_ENV_VAR} environment variable")
+
+    _api_key = os.environ.get(API_KEY_ENV_VAR, "")
+    if not _api_key:
+        raise ValueError(f"Missing ${API_KEY_ENV_VAR} environment variable")
+
+    logger.info("Loading model: %s", model_name)
+    _model = SentenceTransformer(model_name)
+    logger.info("Model ready")
+
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+class EmbedRequest(BaseModel):
+    text: str
+
+
+class EmbedResponse(BaseModel):
+    embedding: list[float]
+
+
+def _require_api_key(key: str = Security(api_key_header)) -> None:
+    if key != _api_key:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.post("/embed", response_model=EmbedResponse)
+def embed(body: EmbedRequest, _: None = Depends(_require_api_key)):
+    assert _model is not None
+    return EmbedResponse(embedding=_model.encode(body.text).tolist())
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-     )
-
-    socket_path = os.environ.get(SOCKET_PATH_ENV_VAR)
-    if socket_path is None:
-        raise ValueError(f"Missing ${SOCKET_PATH_ENV_VAR} environment variable")
-
-    model_name = os.environ.get(MODEL_NAME)
-    if model_name is None:
-        raise ValueError(f"Missing ${MODEL_NAME} environment variable")
-
-    logger.info("Downloading model: %s", model_name)
-    model = SentenceTransformer(model_name)
-
-    logger.info("Using socket path: %s", socket_path)
-    if os.path.exists(socket_path):
-        logger.debug("Removing existing socket file at %s", socket_path)
-        os.remove(socket_path)
-
-    logger.debug("Connecting to socket")
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    sock.bind(socket_path)
-    sock.listen(1)
-
-    try:
-        while True:
-            conn = sock.accept()[0]
-            logger.debug("Accepted connection: %s", conn)
-
-            msgtype, msg = read_msg(conn)
-            if msgtype is None:
-                logger.debug("Could not read message type")
-                break
-            elif msgtype == MSGTYPE_ECHO and msg is not None:
-                logger.info("Echoing message")
-                send_msg(conn, MSGTYPE_ECHO, bytes(msg))
-            elif msgtype == MSGTYPE_EMBED and msg is not None:
-                logger.info("Generating embedding")
-                decoded_msg = bytes(msg).decode("utf-8")
-                embeded_payload = _embed(model, decoded_msg)
-                send_msg(conn, MSGTYPE_EMBED, embeded_payload)
-            else:
-                if msg is not None:
-                    logger.debug("Received invalid msgtyp: %d", msgtype)
-                else:
-                    logger.debug("Received empty message")
-                break
-            conn.close()
-    except Exception as e:
-        logger.info("Unrecoverable exception: %s", e)
-    finally:
-        sock.close()
-        os.remove(socket_path)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8080)
 
 
 if __name__ == "__main__":

@@ -1,30 +1,57 @@
 # embeder
-Basic short sentence embeder
+
+Basic short sentence embedder — a private REST API deployed on Fly.io that converts text into vector embeddings using [sentence-transformers](https://sbert.net/docs/installation.html).
 
 ## What is this
 
-Embeder is a service that turns sentences or groups of words into an embedded vector representation using the [sentence-transformers](https://sbert.net/docs/installation.html) library.
+Embeder takes a text string and returns a high-dimensional float vector representation using the `all-MiniLM-L6-v2` model (384 dimensions). It runs as a private Fly.io app accessible only to other services in the same organization over the Fly.io private network (6PN).
 
-Embeder communicates with clients via a Unix socket and is packaged as a NixOS module.
+## Deploying
 
-It is meant to be used a systemd service alongside other applications on your server.
+```bash
+# First time: create the app and set the API key secret
+fly launch --no-deploy
+fly secrets set EMBED_API_KEY=$(openssl rand -hex 32)
 
-## How do I use it
-
-If you are using a nix flake to manage your server's configuration, you can do so by updating the system's flake with
-
-```
-modules = [
-  ./nixos/configuration.nix
-  embeder.nixosModules.default
-];
+# Deploy
+fly deploy
 ```
 
-then you can enable the service in your configuration file (`configuration.nix`) in teh above example via
+Update `primary_region` in `fly.toml` to match your other services before deploying.
+
+## API
+
+All endpoints require the `X-API-Key` header (value from the `EMBED_API_KEY` Fly secret).
+
+### Health check
+
+```bash
+curl http://embeder.internal:8080/health
 ```
-# Enable the embeder service
-services.embeder = {
-  enable = true;
-  offlineMode = false;
-};
+
+```json
+{"status": "ok"}
+```
+
+### Embed text
+
+```bash
+curl http://embeder.internal:8080/embed \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $EMBED_API_KEY" \
+  -d '{"text": "the quick brown fox"}'
+```
+
+```json
+{"embedding": [0.031, -0.012, ...]}
+```
+
+The returned array has 384 elements (dimensions of `all-MiniLM-L6-v2`).
+
+## Local development
+
+```bash
+make shell  # enters nix dev shell
+
+MODEL_NAME=all-MiniLM-L6-v2 EMBED_API_KEY=dev embeder
 ```

@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.git/
+flake.nix
+flake.lock
+nix/
+dev-scripts/
+Makefile
+README.md
+LICENSE
+result

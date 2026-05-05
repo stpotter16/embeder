@@ -1,37 +1,6 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-# Fail on first error
-set -e
-
-# Fail on unset variable
-set -u
-
-# Configuration
-TARGET_HOST="${TARGET_HOST:-}"
-TARGET_SYSTEM="${TARGET_SYSTEM:-x86_64-linux}"  # Target architecture
-
-# Colors for output
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-if [ -z "$TARGET_HOST" ]; then
-    echo -e "${YELLOW}ERROR: TARGET_HOST environment variable must be set${NC}"
-    echo "Usage: TARGET_HOST=user@server make server/deploy"
-    exit 1
-fi
-
-echo -e "${BLUE}==> Building coin package for $TARGET_SYSTEM...${NC}"
-nix build --system $TARGET_SYSTEM
-
-# Get the store path of the built package
-STORE_PATH=$(readlink -f ./result)
-echo -e "${BLUE}Built: $STORE_PATH${NC}"
-
-echo -e "${BLUE}==> Copying binary and dependencies to $TARGET_HOST...${NC}"
-nix copy --to ssh://$TARGET_HOST ./result
-
-echo -e "${GREEN}==> Deployment complete!${NC}"
-echo -e "${GREEN}Server is running: $STORE_PATH/bin/server${NC}"
-
+echo "Deploying embeder to Fly.io..."
+fly deploy
+echo "Done. Check status with: fly status"
