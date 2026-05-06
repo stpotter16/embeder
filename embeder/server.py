@@ -5,13 +5,12 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
-from sentence_transformers import SentenceTransformer
 
 from .config import API_KEY_ENV_VAR, MODEL_NAME_ENV_VAR
 
 logger = logging.getLogger(__name__)
 
-_model: SentenceTransformer | None = None
+_model: "SentenceTransformer | None" = None
 _api_key: str = ""
 
 api_key_header = APIKeyHeader(name="X-API-Key")
@@ -33,6 +32,8 @@ async def lifespan(app: FastAPI):
     _api_key = os.environ.get(API_KEY_ENV_VAR, "")
     if not _api_key:
         raise ValueError(f"Missing ${API_KEY_ENV_VAR} environment variable")
+
+    from sentence_transformers import SentenceTransformer
 
     logger.info("Loading model: %s", model_name)
     _model = SentenceTransformer(model_name)
