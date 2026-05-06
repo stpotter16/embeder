@@ -1,7 +1,7 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-
 from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
@@ -10,15 +10,23 @@ from .config import API_KEY_ENV_VAR, MODEL_NAME_ENV_VAR
 
 logger = logging.getLogger(__name__)
 
-_model: "SentenceTransformer | None" = None
+_model = None
 _api_key: str = ""
 
 api_key_header = APIKeyHeader(name="X-API-Key")
 
 
+async def _load_model(model_name: str) -> None:
+    global _model
+    from sentence_transformers import SentenceTransformer
+    loop = asyncio.get_running_loop()
+    _model = await loop.run_in_executor(None, SentenceTransformer, model_name)
+    logger.info("Model ready")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _model, _api_key
+    global _api_key
 
     logging.basicConfig(
         level=logging.INFO,
@@ -33,11 +41,8 @@ async def lifespan(app: FastAPI):
     if not _api_key:
         raise ValueError(f"Missing ${API_KEY_ENV_VAR} environment variable")
 
-    from sentence_transformers import SentenceTransformer
-
-    logger.info("Loading model: %s", model_name)
-    _model = SentenceTransformer(model_name)
-    logger.info("Model ready")
+    logger.info("Starting background model load: %s", model_name)
+    asyncio.create_task(_load_model(model_name))
 
     yield
 
@@ -60,12 +65,15 @@ def _require_api_key(key: str = Security(api_key_header)) -> None:
 
 @app.get("/health")
 def health():
+    if _model is None:
+        raise HTTPException(status_code=503, detail="Model loading")
     return {"status": "ok"}
 
 
 @app.post("/embed", response_model=EmbedResponse)
 def embed(body: EmbedRequest, _: None = Depends(_require_api_key)):
-    assert _model is not None
+    if _model is None:
+        raise HTTPException(status_code=503, detail="Model loading")
     return EmbedResponse(embedding=_model.encode(body.text).tolist())
 
 

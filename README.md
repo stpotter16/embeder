@@ -9,8 +9,9 @@ Embeder takes a text string and returns a high-dimensional float vector represen
 ## Deploying
 
 ```bash
-# First time: create the app and set the API key secret
+# First time: create the app, allocate a private IP, and set the API key secret
 fly launch --no-deploy
+fly ips allocate-v6 --private
 fly secrets set EMBED_API_KEY=$(openssl rand -hex 32)
 
 # Deploy
@@ -19,6 +20,8 @@ fly deploy
 
 Update `primary_region` in `fly.toml` to match your other services before deploying.
 
+The private IP enables [Flycast](https://fly.io/docs/networking/private-networking/#flycast-private-load-balancing) — private load balancing within the org with auto-start/stop support. Do not allocate a public IP, as this service is intended to be internal only.
+
 ## API
 
 All endpoints require the `X-API-Key` header (value from the `EMBED_API_KEY` Fly secret).
@@ -26,7 +29,7 @@ All endpoints require the `X-API-Key` header (value from the `EMBED_API_KEY` Fly
 ### Health check
 
 ```bash
-curl http://embeder.internal:8080/health
+curl http://dev-stpotter-dumb-embed.flycast:8080/health
 ```
 
 ```json
@@ -36,7 +39,7 @@ curl http://embeder.internal:8080/health
 ### Embed text
 
 ```bash
-curl http://embeder.internal:8080/embed \
+curl http://dev-stpotter-dumb-embed.flycast:8080/embed \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $EMBED_API_KEY" \
   -d '{"text": "the quick brown fox"}'

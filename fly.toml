@@ -2,7 +2,7 @@ app = "dev-stpotter-dumb-embed"
 primary_region = "iad"
 
 [env]
-  HF_HOME = "/app/models"
+  SENTENCE_TRANSFORMERS_HOME = "/app/models"
   MODEL_NAME = "all-MiniLM-L6-v2"
   TRANSFORMERS_OFFLINE = "1"
 
