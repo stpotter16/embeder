@@ -1,4 +1,4 @@
-app = "embeder"
+app = "dev-stpotter-dumb-embed"
 primary_region = "iad"
 
 [env]
