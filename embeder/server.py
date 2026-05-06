@@ -71,7 +71,7 @@ def embed(body: EmbedRequest, _: None = Depends(_require_api_key)):
 
 def main() -> None:
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="::", port=8080)
 
 
 if __name__ == "__main__":

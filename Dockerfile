@@ -12,4 +12,4 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 COPY embeder/ embeder/
 RUN pip install --no-cache-dir --no-deps -e .
 
-CMD ["uvicorn", "embeder.server:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "embeder.server:app", "--host", "::", "--port", "8080"]
