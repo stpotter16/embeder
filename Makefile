@@ -2,7 +2,7 @@ shell:
 	nix develop -c $$SHELL
 
 run:
-	MODEL_NAME=all-MiniLM-L6-v2 EMBED_API_KEY=dev uvicorn embeder.server:app --host :: --port 8080 --reload
+	MODEL_NAME=all-MiniLM-L6-v2 EMBED_API_KEY=dev uvicorn embeder.server:app --host 0.0.0.0 --port 8080 --reload
 
 service/deploy:
 	./dev-scripts/deploy.sh
