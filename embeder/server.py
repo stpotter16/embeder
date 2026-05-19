@@ -1,7 +1,8 @@
-import asyncio
 import logging
 import os
+import threading
 from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
@@ -16,11 +17,10 @@ _api_key: str = ""
 api_key_header = APIKeyHeader(name="X-API-Key")
 
 
-async def _load_model(model_name: str) -> None:
+def _load_model_sync(model_name: str) -> None:
     global _model
     from sentence_transformers import SentenceTransformer
-    loop = asyncio.get_running_loop()
-    _model = await loop.run_in_executor(None, SentenceTransformer, model_name)
+    _model = SentenceTransformer(model_name)
     logger.info("Model ready")
 
 
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
         raise ValueError(f"Missing ${API_KEY_ENV_VAR} environment variable")
 
     logger.info("Starting background model load: %s", model_name)
-    asyncio.create_task(_load_model(model_name))
+    threading.Thread(target=_load_model_sync, args=(model_name,), daemon=True).start()
 
     yield
 
