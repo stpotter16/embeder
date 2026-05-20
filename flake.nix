@@ -42,6 +42,7 @@
         devShells.default = pkgs.mkShell {
           packages = [
             flyctl
+            pkgs.uv
             (py.withPackages (ps: with ps; [
               fastapi
               uvicorn
@@ -49,6 +50,9 @@
               mypy
             ]))
           ];
+          shellHook = ''
+            export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:$LD_LIBRARY_PATH"
+          '';
         };
       }
     );
