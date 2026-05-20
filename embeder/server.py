@@ -19,8 +19,9 @@ api_key_header = APIKeyHeader(name="X-API-Key")
 
 def _load_model_sync(model_name: str) -> None:
     global _model
-    from sentence_transformers import SentenceTransformer
-    _model = SentenceTransformer(model_name)
+    from fastembed import TextEmbedding
+    cache_dir = os.environ.get("FASTEMBED_CACHE_PATH")
+    _model = TextEmbedding(model_name=model_name, cache_dir=cache_dir)
     logger.info("Model ready")
 
 
@@ -74,7 +75,8 @@ def health():
 def embed(body: EmbedRequest, _: None = Depends(_require_api_key)):
     if _model is None:
         raise HTTPException(status_code=503, detail="Model loading")
-    return EmbedResponse(embedding=_model.encode(body.text).tolist())
+    embedding = next(_model.embed([body.text]))
+    return EmbedResponse(embedding=embedding.tolist())
 
 
 def main() -> None:

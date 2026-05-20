@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "embeder"
 version = "0.1.0"
 dependencies = [
-    "sentence-transformers",
+    "fastembed",
     "fastapi",
     "uvicorn[standard]",
 ]

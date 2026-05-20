@@ -4,7 +4,7 @@ Basic short sentence embedder — a private REST API deployed on Fly.io that con
 
 ## What is this
 
-Embeder takes a text string and returns a high-dimensional float vector representation using the `all-MiniLM-L6-v2` model (384 dimensions). It runs as a private Fly.io app accessible only to other services in the same organization over the Fly.io private network (6PN).
+Embeder takes a text string and returns a high-dimensional float vector representation using the `sentence-transformers/all-MiniLM-L6-v2` model (384 dimensions). It runs as a private Fly.io app accessible only to other services in the same organization over the Fly.io private network (6PN).
 
 ## Deploying
 
@@ -49,12 +49,12 @@ curl http://dev-stpotter-dumb-embed.flycast:8080/embed \
 {"embedding": [0.031, -0.012, ...]}
 ```
 
-The returned array has 384 elements (dimensions of `all-MiniLM-L6-v2`).
+The returned array has 384 elements (dimensions of `sentence-transformers/all-MiniLM-L6-v2`).
 
 ## Local development
 
 ```bash
 make shell  # enters nix dev shell
 
-MODEL_NAME=all-MiniLM-L6-v2 EMBED_API_KEY=dev embeder
+MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2 EMBED_API_KEY=dev embeder
 ```

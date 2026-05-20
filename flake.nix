@@ -25,7 +25,7 @@
           build-system = with py.pkgs; [ setuptools ];
 
           dependencies = with py.pkgs; [
-            sentence-transformers
+            fastembed
             fastapi
             uvicorn
           ];
@@ -43,7 +43,7 @@
           packages = [
             flyctl
             (py.withPackages (ps: with ps; [
-              sentence-transformers
+              fastembed
               fastapi
               uvicorn
               ipython
