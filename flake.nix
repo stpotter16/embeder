@@ -43,7 +43,6 @@
           packages = [
             flyctl
             (py.withPackages (ps: with ps; [
-              fastembed
               fastapi
               uvicorn
               ipython
